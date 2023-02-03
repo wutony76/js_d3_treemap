@@ -1,0 +1,166 @@
+<html>
+  <head
+    meta charset="utf-8">
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v6.js"></script>
+    <style>
+      body {
+        font-family: "Helvetica Neue", "Luxi Sans", "DejaVu Sans", Tahoma, "Hiragino Sans GB", STHeiti, "Microsoft YaHei";
+        font-size: 12px;
+      }
+      svg {
+        width: 100%;
+      }
+      foreignObject, text {
+        pointer-events: none;
+      }
+      div.tooltip {
+        position: absolute;
+        text-align: center;
+        padding: 4px 10px;
+        background: rgb(225 225 225);
+        border: solid 1px black;
+        border-radius: 2px;
+        pointer-events: none;
+        transition: all .5s;
+        white-space: nowrap;
+      }
+      .text {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: black;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+    </style>
+
+  </head>
+  <body>
+    <div id="my_dataviz"></div>
+  </body>
+
+  <script>
+    let wW = window.innerWidth
+    let wH = window.innerHeight
+
+    // set the dimensions and margins of the graph
+    const margin = {top: 10, right: 10, bottom: 10, left: 10},
+      width = wW - margin.left - margin.right,
+      height = 450 - margin.top - margin.bottom;
+
+    // append the svg object to the body of the page
+    const svg = d3.select("#my_dataviz")
+    .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .attr("viewBox", [0.5, 0.5, width + 30, height + 30])
+    .append("g")
+      .attr("transform",
+            `translate(${margin.left}, ${margin.top})`);
+
+
+
+    let data = [
+      {name: 'piece-d', parent: 'Origin', id: 1, value: 35.5},
+      {name: 'piece-a', parent: 'Origin', id: 1, value: 12.7},
+      {name: 'piece-B', parent: 'Origin', id: 1, value: 3},
+      {name: 'piece-C', parent: 'Origin', id: 1, value: 1},
+      {name: 'piece-C', parent: 'Origin', id: 1, value: 0.8},
+      {name: 'piece-A', parent: 'Origin', id: 1, value: 21.2},
+      {name: 'piece-2', parent: 'Origin', id: 1, value: 15.8},
+      {name: 'piece-a', parent: 'Origin', id: 1, value: 2.7},
+      {name: 'piece-B', parent: 'Origin', id: 1, value: .3},
+      {name: 'piece-C', parent: 'Origin', id: 1, value: .1},
+      {name: 'piece-C', parent: 'Origin', id: 1, value: 5.8},
+      {name: 'piece-A', parent: 'Origin', id: 1, value: 8.2},
+      {name: 'piece-2', parent: 'Origin', id: 1, value: 11.8},
+    ]
+    data.sort(function(a, b) {
+      return b.value - a.value;
+    });
+    data.unshift({name: 'Origin', parent: '', value: ''})
+
+    // Read data
+    //d3.csv('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/data_hierarchy_1level.csv').then(function(_data) {
+
+      // stratify the data: reformatting for d3.js
+      const root = d3.stratify()
+        .id(function(d) {
+          return d.name;
+        })   // Name of the entity (column name is name in csv)
+        .parentId(function(d) { return d.parent; })   // Name of the parent (column name is parent in csv)
+        (data);
+      root.sum(function(d) { return +d.value })   // Compute the numeric value for each entity
+
+      // Then d3.treemap computes the position of each element of the hierarchy
+      // The coordinates are added to the root object above
+      d3.treemap()
+        .size([width, height])
+        // .padding(4)
+        (root)
+
+      // Define the div for the tooltip
+      const div = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+      // use this information to add rectangles:
+      svg
+        .selectAll("rect")
+        .data(root.leaves())
+        .join("rect")
+          .attr('x', function (d) { return d.x0; })
+          .attr('y', function (d) { return d.y0; })
+          .attr('width', function (d) { return d.x1 - d.x0; })
+          .attr('height', function (d) { return d.y1 - d.y0; })
+          .style("stroke", "black")
+          .style("fill", "white")
+          .on('click', (e) => {
+            console.log(this)
+            console.log(e.path[0].__data__.data)
+            alert(e.path[0].__data__.data.name)
+          })
+          .on("mouseover", (e) => {
+            const cur = e.path[0].__data__.data
+            div.transition()
+              .duration(200)
+              .style("opacity", .9);
+            div.html(cur.name + "<br/>" + cur.value)
+              .style("left", (e.pageX - 80 ) + "px")
+              .style("top", (e.pageY - 28) + "px");
+          })
+          .on("mouseout", (d) => {
+            div.transition()
+              .duration(500)
+              .style("opacity", 0);
+          });
+
+      // and to add the text labels
+      svg
+        .selectAll("foreignObject")
+        .data(root.leaves())
+        .join("foreignObject")
+        .attr("class", "foreignObject")
+        .attr("width", function(d) {
+          return d.x1 - d.x0
+        })
+        .attr("height", function(d) {
+          return d.y1 - d.y0
+        })
+        .attr("x", function(d){ return d.x0 })
+        .attr("y", function(d){ return d.y0 })
+        .append("xhtml:body")
+        .append("div")
+        .attr("class", "text")
+        .html(function(d){
+          let newName = ''
+          newName = d.data.name + '   -Bet:' + d.data.value + ''
+          return newName
+        })
+    //})
+  </script>
+</html>
+
